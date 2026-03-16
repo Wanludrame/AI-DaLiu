@@ -1,6 +1,7 @@
 # 只保留 .claude/skills 和 电子大刘作品/，其余全部忽略
 *
 !.gitignore
+!README.md
 !.claude/
 !.claude/skills/
 !.claude/skills/**
