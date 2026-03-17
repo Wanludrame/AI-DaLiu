@@ -5,6 +5,8 @@
 !.claude/
 !.claude/skills/
 !.claude/skills/**
+!.github/
+!.github/**
 !电子大刘作品/
 !电子大刘作品/潮汐_*.txt
 !电子大刘作品/圆的尽头_*.txt
