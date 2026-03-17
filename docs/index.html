@@ -1,0 +1,20 @@
+---
+layout: default
+---
+
+<style>
+  .page-header { padding: 1rem 2rem; }
+  .main-content { max-width: 800px; margin: 0 auto; padding: 2rem; font-size: 1.05rem; line-height: 1.8; }
+  .main-content h1 { font-size: 1.8rem; margin-top: 2rem; }
+  .main-content h2 { font-size: 1.4rem; margin-top: 2.5rem; border-bottom: 1px solid #eee; padding-bottom: 0.3rem; }
+  .main-content blockquote { border-left: 3px solid #999; padding-left: 1rem; color: #555; font-style: italic; margin: 1.5rem 0; }
+  .main-content blockquote p { margin: 0.3rem 0; }
+  .post-meta { color: #888; font-size: 0.9rem; margin-bottom: 2rem; }
+</style>
+
+{% for post in site.posts %}
+<article>
+  <p class="post-meta">{{ post.date | date: "%Y-%m-%d" }}</p>
+  {{ post.content }}
+</article>
+{% endfor %}
