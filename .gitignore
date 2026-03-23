@@ -2,6 +2,7 @@
 *
 !.gitignore
 !README.md
+!CATALOG.md
 !.claude/
 !.claude/skills/
 !.claude/skills/**
