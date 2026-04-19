@@ -1,0 +1,3 @@
+# 统一行尾为 LF，避免 Windows 工具（Claude Code、VS Code 等）
+# 把文件写成 CRLF 导致 git status 全文件"modified"的假阳性。
+* text=auto eol=lf

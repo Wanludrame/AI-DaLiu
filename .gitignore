@@ -1,6 +1,7 @@
 # 只保留 .claude/skills 和 电子大刘作品/，其余全部忽略
 *
 !.gitignore
+!.gitattributes
 !README.md
 !CATALOG.md
 !.claude/
@@ -18,6 +19,9 @@
 电子大刘作品/星辰间的造梦者_*.txt
 电子大刘作品/月落_*.txt
 电子大刘作品/圆的尽头*.txt
+
+# 同人作品不 check in
+同人作品/
 
 # 排除敏感配置（含 API Key 和权限记录）
 .claude/settings.json
