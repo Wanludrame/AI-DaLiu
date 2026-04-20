@@ -18,6 +18,12 @@ description: "《三体》三部曲人物深度分析库：对三体主要人物
 | 程心（执剑人、圣母争议、与云天明/维德/关一帆的关系等） | `references/cheng-xin.md` |
 | 托马斯·维德（PIA、阶梯计划、光速飞船、"不择手段地前进"） | `references/thomas-wade.md` |
 | 云天明（星星礼物、三个童话、求生信息、大脑计划） | `references/yun-tianming.md` |
+| 罗辑（面壁者、黑暗森林威慑、执剑人 54 年、地球守墓人） | `references/luo-ji.md` |
+| 叶文洁（红岸基地、ETO、按下回复键、向罗辑交出宇宙社会学两公理） | `references/ye-wenjie.md` |
+| 章北海（自然选择号叛逃、工质派、陨石弹暗杀、"没关系的，都一样"） | `references/zhang-beihai.md` |
+| 丁仪（理论物理、杨冬之死后的沉默、末日之战殉道、"物理学不存在了"） | `references/ding-yi.md` |
+| 史强（大史，贯穿三部，粗中有细；飞刃提议者、罗辑老友） | `references/shi-qiang.md` |
+| 汪淼（纳米科学家、《三体》第一部主角视角、三体游戏沉浸者） | `references/wang-miao.md` |
 
 涉及多个人物时，并行读取多个文件。
 
