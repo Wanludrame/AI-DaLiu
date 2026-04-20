@@ -19,7 +19,7 @@ AI 科幻创作与短片制作引擎，基于 [Claude Code](https://claude.ai/cl
 | 电子大刘日记 | `/daily-diary` | 模拟大刘在娘子关电厂的一天生活 |
 | 短片制作 | `/short-film-maker` | 从故事文本自动生成完整短片 |
 | 三体同人 | `/three-body-fanfic` | 在三体世界观内创作同人小说 |
-| 三体人物分析 | `/three-body-characters` | 三体主要人物深度分析库（程心、托马斯·维德、云天明），按需加载 `references/` 下的原子人物文件 |
+| 三体人物分析 | `/three-body-characters` | 三体主要人物深度分析库（9 人：罗辑、叶文洁、章北海、程心、维德、云天明、丁仪、史强、汪淼），按需加载 `references/` 下的原子人物文件 |
 
 ## 电子大刘日记系统
 
