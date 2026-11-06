@@ -1,6 +1,6 @@
 ---
 name: short-film-maker
-description: "AI短片制作引擎：从小说/故事文本自动生成完整短片。全流程自动化：文本分析→分镜脚本→AI图片生成(Seedream)→AI视频生成(Seedance)→TTS旁白→字幕→BGM→最终组装。"
+description: "AI短片制作引擎：从小说/故事文本自动生成完整短片。全流程自动化：文本分析→分镜脚本→AI图片生成(Seedream 5.0 pro)→AI视频生成(Seedance 2.0 系列)→TTS旁白(edge-tts 分句)→字幕→BGM→最终组装。"
 ---
 
 # AI 短片制作引擎
@@ -38,59 +38,69 @@ description: "AI短片制作引擎：从小说/故事文本自动生成完整短
 
 ## 一、技术栈与 API 配置
 
-### 图片生成：火山方舟 Seedream 5.0
-- 模型 ID：`doubao-seedream-5-0-260128`
+> **模型版本核对（2026-11-06）**：依据火山方舟《模型下线公告》第十批，`doubao-seedream-5-0-260128`、`doubao-seedance-1-0-pro-250528`、`doubao-seedance-1-0-pro-fast-251015` 于 **2026-11-24 14:00 关停且不自动迁移**，本 skill 已移除。模型每 3–6 个月迭代一次，开工前先查 https://ark.volcengine.com/region:cn-beijing/docs/model-deprecation-notice ，遇到 `ModelNotFound`/模型下线类报错先换成公告里的建议迁移模型。
+
+### 图片生成：火山方舟 Seedream 5.0 pro
+- 模型 ID：`doubao-seedream-5-0-pro-260628`（备选：`doubao-seedream-5.0-flash`，更快更便宜）
 - API：同步调用
-- 最低像素要求：3,686,400（使用 `2048x2048`）
+- `size` 用分辨率档位：`1K` / `1.5K` / `2K`（默认 2K），在 prompt 里用自然语言写明宽高比（如 "16:9 widescreen"）；也可直接给像素值，两种写法不可混用
+- 返回的图片 URL 有时效，拿到后立即下载到本地
 
 ```
 POST https://ark.cn-beijing.volces.com/api/v3/images/generations
-Headers: Authorization: Bearer <API_KEY>
+Headers: Authorization: Bearer $ARK_API_KEY
 Body: {
-  "model": "doubao-seedream-5-0-260128",
-  "prompt": "<英文提示词>",
-  "size": "2048x2048"
+  "model": "doubao-seedream-5-0-pro-260628",
+  "prompt": "<英文提示词>, 16:9 widescreen",
+  "size": "2K",
+  "watermark": false
 }
-Response: data[0].url → 下载图片
+Response: data[0].url → 立即下载图片
 ```
 
-### 视频生成：火山方舟 Seedance（逐级降级策略）
+### 视频生成：火山方舟 Seedance 2.0 系列（逐级降级策略）
 
-**核心原则：优先使用最强模型，token/额度不足时自动降级到次一级模型。**
+**核心原则：优先使用最强模型，额度不足/限流时自动降级到次一级模型。**
 
-模型降级梯队（从强到弱）：
+| 优先级 | 模型 | Model ID | 分辨率 | 说明 |
+|--------|------|----------|--------|------|
+| 1（首选） | **Seedance 2.0** | `doubao-seedance-2-0-260128` | 480p/720p/1080p/4k | 画质最好，支持多图参考、首尾帧、视频延长 |
+| 2 | **Seedance 2.0 Fast** | `doubao-seedance-2-0-fast-260128` | 480p/720p | 速度快、成本低 |
+| 3 | **Seedance 2.0 Mini** | `doubao-seedance-2-0-mini-260615` | 480p/720p | 成本最低，官方指定的 1.0 Pro 替代 |
+| 4（兜底） | **Seedance 1.5 Pro** | `doubao-seedance-1-5-pro-251215` | 720p/1080p | 旧一代，2.0 系列全部受限时再用 |
 
-| 优先级 | 模型 | Model ID | 能力 |
-|--------|------|----------|------|
-| 1（首选） | **Seedance 2.0** | `doubao-seedance-2-0-260128` | 多模态→视频, 视频续写, 视频编辑 |
-| 2 | **Seedance 1.5 Pro** | `doubao-seedance-1-5-pro-251215` | t2v, i2v, 含音频输出 |
-| 3 | **Seedance 1.0 Pro** | `doubao-seedance-1-0-pro-250528` | t2v, i2v |
-| 4 | **Seedance 1.0 Pro Fast** | `doubao-seedance-1-0-pro-fast-251015` | t2v, i2v（速度快，质量略低） |
-| i2v 专用 | **Seedance 1.0 Lite i2v** | `doubao-seedance-1-0-lite-i2v-250428` | 图生视频（人物一致性场景） |
-
+- Seedance 2.0 系列开通条件：账户余额 > 200 元（或购买对应套餐），否则调用会报未开通
+- 单次可生成 **4–15 秒**（`duration`），比例用 `ratio`（16:9 / 9:16 等），分辨率用 `resolution`
+- 我们自己做旁白和配乐，**必须传 `"generate_audio": false`**，否则模型会自带音轨，和旁白打架
 - API：异步调用（提交→轮询→下载）
 
 ```
-# 文生视频（t2v）— 从最强模型开始尝试
+# 文生视频（t2v）
 POST https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks
+Body: {
+  "model": "doubao-seedance-2-0-260128",
+  "content": [{"type": "text", "text": "<英文提示词>"}],
+  "ratio": "16:9",
+  "resolution": "1080p",
+  "duration": <按镜头时长取 4-15 的整数>,
+  "generate_audio": false,
+  "watermark": false
+}
+
+# 图生视频（i2v，人物镜头）—— 定妆照作为参考图，保证人物一致
 Body: {
   "model": "<按降级梯队选择>",
-  "content": [{"type": "text", "text": "<英文提示词>"}]
-}
-
-# 图生视频（i2v）— 用于保持人物形象一致
-POST https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks
-Body: {
-  "model": "<按降级梯队选择，优先 2.0/1.5，备选 1.0 Lite i2v>",
   "content": [
-    {"type": "image_url", "image_url": {"url": "<参考图URL或base64>"}},
+    {"type": "image_url", "image_url": {"url": "<公网URL 或 data:image/jpeg;base64,...>"}, "role": "reference_image"},
     {"type": "text", "text": "<英文动作/场景提示词>"}
-  ]
+  ],
+  "ratio": "16:9", "resolution": "1080p", "duration": <4-15>, "generate_audio": false
 }
+# 需要严格以某张图为第一帧时，把 role 改为 "first_frame"（可再加一张 "last_frame"）
 
-# 轮询状态（每20秒一次，最长10分钟）
+# 轮询状态（每20秒一次，最长15分钟）
 GET https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks/<task_id>
-Response: status (running/succeeded/failed), content.video_url
+Response: status (queued/running/succeeded/failed), content.video_url → 立即下载
 ```
 
 ### 人物形象一致性方案
@@ -101,51 +111,35 @@ Response: status (running/succeeded/failed), content.video_url
 
 1. **Step 2 中先生成人物定妆照**：为每个主要人物用 Seedream 生成一张标准定妆照（正面/半侧面，清晰面部特征，中性背景）
 2. **固定人物外貌描述**：在脚本制作说明中定义人物外貌锚点（如 "a young Asian man, short black hair, thin face, deep-set eyes, pale skin"），所有镜头提示词复用此描述
-3. **含人物的镜头优先使用 i2v 模型**：传入定妆照作为参考图 + 动作/场景提示词
+3. **含人物的镜头使用 i2v**：传入定妆照（`role: reference_image`，Seedance 2.0 系列最多 9 张参考图，可同时放多个人物的定妆照）+ 动作/场景提示词
 4. **无人物的镜头**（纯景、太空、物体特写）继续使用 t2v 模型
 
-### TTS 旁白：edge-tts + SSML 情感控制
-- 前置依赖：`pip install edge-tts`
+### TTS 旁白：edge-tts 分句情感控制
+- 前置依赖：`pip install -U edge-tts`（7.x 版本）
 - 默认男声：`zh-CN-YunxiNeural`（低沉克制）
 - 可选女声：`zh-CN-XiaoxiaoNeural`（温柔细腻）
 - 其他可选：`zh-CN-YunjianNeural`（浑厚有力）、`zh-CN-YunyangNeural`（沉稳新闻播报风）
+- 开工前可用 `edge-tts --list-voices` 确认音色仍可用
 
-**关键：不要用简单的 `Communicate(text, voice, rate)` 做平铺直叙。必须用 SSML 标记为每段旁白注入情感层次。**
+**⚠️ 自定义 SSML 已不可用**：edge-tts 已移除自定义 SSML 支持（微软服务端只接受一个 `<voice>` 内一个 `<prosody>`），把多段 `<prosody>`/`<break>` 拼在一起的写法会被拒绝或被当成文字念出来。
 
-SSML 情感控制手段：
-- `<prosody rate="-20%" pitch="-5%">` — 降速降调，制造沉重感
-- `<prosody rate="-35%" volume="soft">` — 极慢极轻，用于关键句/情感爆发点
-- `<break time="800ms"/>` — 句间停顿，制造留白
-- `<prosody pitch="+5%" rate="+10%">` — 略快略高，用于叙事/信息段
+**替代做法：按句切分 + 每句单独设参数 + ffmpeg 补停顿**，效果等价：
+1. 每段旁白按句（或按情感段）切开
+2. 每句用 `Communicate(text, voice, rate=..., pitch=..., volume=...)` 单独生成一个小 mp3
+3. 句间停顿用 ffmpeg 生成对应时长的静音片段
+4. 按顺序拼接成该镜头的 `narr<NN>.mp3`
 
-**旁白情感设计原则**：
-- 叙事段（交代背景、时间）：正常语速，中性语调
-- 情感递进段：语速逐渐变慢，音量逐渐变低
-- 关键句/点题句：极慢、极轻、前后加长停顿——让沉默说话
-- 转折/惊讶：前面加停顿，句首略微提速再回落
+参数对照（`rate`/`volume` 用百分比，`pitch` 用 Hz）：
+| 情感 | rate | pitch | volume |
+|------|------|-------|--------|
+| 叙事段 | `-15%` | `-3Hz` | `+0%` |
+| 递进段 | `-20%` | `-5Hz` | `-5%` |
+| 关键句 / 点题句 | `-35%` | `-8Hz` | `-20%` |
+| 转折句句首 | `-10%` | `+0Hz` | `+0%` |
 
-**SSML 模板示例**：
-```python
-ssml = '''
-<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="zh-CN">
-    <voice name="zh-CN-YunxiNeural">
-        <prosody rate="-15%" pitch="-3%">
-            她来看过他。
-        </prosody>
-        <break time="600ms"/>
-        <prosody rate="-20%">
-            她说了两个字：
-        </prosody>
-        <break time="400ms"/>
-        <prosody rate="-35%" volume="soft" pitch="-8%">
-            谢谢。
-        </prosody>
-    </voice>
-</speak>
-'''
-```
+停顿：普通句间 400ms，转折前 800ms，关键句前后 600–1000ms。
 
-**在 Step 1 写分镜脚本时，旁白文本应同时附上 SSML 标注方案**，标明哪些句子需要降速、加停顿、变轻声。在 Step 4 生成时直接用 SSML 调用。
+**在 Step 1 写分镜脚本时，旁白文本同时附上分句情感标注**（每句标 叙事/递进/关键/转折，句间标停顿毫秒数），Step 4 直接按标注生成。
 
 ### 视频组装：FFmpeg
 - 要求：系统已安装 FFmpeg（`ffmpeg` 和 `ffprobe` 在 PATH 中）
@@ -184,7 +178,7 @@ powershell -Command "[System.Environment]::SetEnvironmentVariable('ARK_API_KEY',
 - 确定整体视觉基调（色温、明暗、风格）
 
 **1.2 分镜设计原则**
-- 每个镜头 6-12 秒，总镜头数 = 目标时长 / 平均镜头时长
+- 每个镜头 4-15 秒（Seedance 2.0 单次生成上限 15 秒），一般 6-10 秒，总镜头数 = 目标时长 / 平均镜头时长
 - 开头镜头：建立氛围（通常暗场/特写→展开）
 - 中段镜头：信息密度较高，节奏可稍快
 - 结尾镜头：节奏放慢，留白/留黑，情感沉淀
@@ -199,7 +193,7 @@ powershell -Command "[System.Environment]::SetEnvironmentVariable('ARK_API_KEY',
 - 【画面】：详细的视觉描述
 - 【字幕】：凝练的短句（不是旁白的复述，是画龙点睛）
 - 【旁白】：叙述性文本，从原文提炼或改写
-- 【旁白SSML标注】：标记哪些句子需要降速、加停顿、变轻声（情感关键句用 `*` 标记，停顿用 `//` 标记）
+- 【旁白情感标注】：逐句标注 叙事/递进/关键/转折，句间停顿用 `//<毫秒>` 标记（如 `//800`）
 - 【音效/BGM】：氛围音效描述
 - **AI 生成提示词**：英文，用于 Seedream/Seedance，包含场景、光线、色调、构图、风格关键词
 - **镜头类型标注**：标明 `[t2v]`（纯场景/无人物）或 `[i2v]`（含人物，需传入定妆照）
@@ -249,7 +243,7 @@ powershell -Command "[System.Environment]::SetEnvironmentVariable('ARK_API_KEY',
 1. 从脚本制作说明中提取每个镜头的英文 AI 提示词
 2. **首先生成人物定妆照**：为每个主要人物单独生成一张标准定妆照（正面或半侧面，清晰面部，中性背景），保存为 `char_<name>.jpg`
 3. 再批量生成各镜头的概念图（可并行）
-4. 每次调用使用 `size: "2048x2048"`
+4. 每次调用使用 `size: "2K"`，prompt 末尾写明 `16:9 widescreen`（竖版写 `9:16 vertical`）
 5. 保存为 `短片素材/<项目名>/shot<NN>_<desc>.jpg`
 
 **提示词优化规则**：
@@ -259,7 +253,7 @@ powershell -Command "[System.Environment]::SetEnvironmentVariable('ARK_API_KEY',
 - 人物描述使用通用特征而非具体人名
 
 **错误处理**：
-- 400 错误检查 size 参数是否满足最低像素要求
+- 400 错误先检查 size 写法（档位 `2K` 与像素值不可混用）
 - 429/限流则等待重试
 - 内容审核驳回则调整提示词后重试
 
@@ -267,31 +261,32 @@ powershell -Command "[System.Environment]::SetEnvironmentVariable('ARK_API_KEY',
 
 ### Step 3: AI 视频生成
 
-为每个镜头生成 ~5 秒视频片段。
+为每个镜头直接生成接近脚本时长的视频片段（不再依赖慢放拉长）。
 
 **执行逻辑**：
 1. 提取每个镜头的英文视频提示词及类型标注（`[t2v]` 或 `[i2v]`）
-2. **[i2v] 镜头**（含人物）：按降级梯队选择支持 i2v 的模型（2.0 → 1.5 Pro → 1.0 Pro → 1.0 Lite i2v），传入定妆照 + 动作/场景提示词
-3. **[t2v] 镜头**（纯场景）：按降级梯队选择（2.0 → 1.5 Pro → 1.0 Pro → 1.0 Pro Fast），纯文本提示词
-4. 批量提交任务（建议分批，每批 4-6 个），轮询等待
-5. 成功则下载视频到 `短片素材/<项目名>/shot<NN>_<desc>.mp4`
-6. 保存 task_id 到 `video_tasks.json` 以便断点续传
+2. `duration` = 脚本镜头时长四舍五入，限制在 4–15 秒之间；旁白较长的镜头按 旁白时长+1 秒取值
+3. **[i2v] 镜头**（含人物）：传入定妆照（`role: reference_image`）+ 动作/场景提示词
+4. **[t2v] 镜头**（纯场景）：纯文本提示词
+5. 所有请求都带 `"generate_audio": false`、`"ratio": "16:9"`、`"resolution"`（2.0 用 `1080p`，Fast/Mini 用 `720p`）
+6. 批量提交任务（每批 4-6 个），轮询等待
+7. 成功则立即下载视频到 `短片素材/<项目名>/shot<NN>_<desc>.mp4`（结果链接有时效）
+8. 保存 task_id 和所用模型到 `video_tasks.json` 以便断点续传
 
 **模型降级策略**（核心逻辑）：
-1. 从最强模型开始尝试：`doubao-seedance-2-0-260128`（Seedance 2.0）
-2. 如遇 `SetLimitExceeded` 或额度不足错误，降级到 `doubao-seedance-1-5-pro-251215`（Seedance 1.5 Pro）
-3. 再次受限，降级到 `doubao-seedance-1-0-pro-250528`（Seedance 1.0 Pro）
-4. 仍然受限，降级到 `doubao-seedance-1-0-pro-fast-251015`（Seedance 1.0 Pro Fast，速度快质量略低）
-5. 如所有模型均受限，提示用户：
-   - 前往火山方舟控制台关闭"安心体验模式"
-   - 或等待额度刷新
-6. **一旦某个模型成功，后续镜头继续使用该模型**（同一批次内不反复尝试更高级模型，减少无谓错误和等待）
-7. **i2v 镜头（含人物）**：优先用当前 t2v 同级别的 i2v 能力（2.0/1.5/1.0 Pro 均支持 i2v），最终降级到 `doubao-seedance-1-0-lite-i2v-250428`
+1. 从 `doubao-seedance-2-0-260128`（Seedance 2.0）开始
+2. 遇到 `SetLimitExceeded`、额度不足、429 限流或模型未开通，降级到 `doubao-seedance-2-0-fast-260128`
+3. 再受限，降级到 `doubao-seedance-2-0-mini-260615`
+4. 仍受限，兜底 `doubao-seedance-1-5-pro-251215`
+5. 全部受限时提示用户：检查账户余额（2.0 系列需 > 200 元）、到火山方舟控制台关闭"安心体验模式"或调高用量上限，或等待额度刷新
+6. **一旦某个模型成功，后续镜头继续使用该模型**（同一批次内不反复尝试更高级模型）
+7. 降级到 Fast/Mini 时同步把 `resolution` 改为 `720p`，Step 5 统一放大到 1080p
 
 **视频提示词优化规则**：
 - 强调动态元素（camera moving, slowly pushing, pulling back）
 - 描述动作/变化过程而非静态场景
 - 包含节奏描述（slow, gentle, dramatic）
+- 不要在提示词里要求出现文字（字幕由我们后期烧入）
 
 ---
 
@@ -300,54 +295,42 @@ powershell -Command "[System.Environment]::SetEnvironmentVariable('ARK_API_KEY',
 为每个有旁白的镜头生成语音。
 
 **执行逻辑**：
-1. 检查 edge-tts 是否安装（`import edge_tts`），未安装则 `pip install edge-tts`
-2. 从脚本提取每个镜头的旁白文本
-3. 使用 asyncio + edge_tts 批量生成
-4. 保存到 `短片素材/<项目名>/audio/narr<NN>.mp3`
-5. 用 ffprobe 检查每段旁白的时长，记录备用
-
-**语音参数**：
-- 默认：`zh-CN-YunxiNeural`（男声，低沉）
-- 可选：`zh-CN-XiaoxiaoNeural`（女声，温柔）、`zh-CN-YunjianNeural`（男声，浑厚）
-
-**必须使用 SSML 生成旁白，不要用简单的纯文本调用。** 根据 Step 1 中的旁白SSML标注，为每段旁白构建 SSML：
+1. 检查 edge-tts 是否安装（`import edge_tts`），未安装则 `pip install -U edge-tts`
+2. 从脚本提取每个镜头的旁白文本及分句情感标注
+3. 每句单独生成，句间插入静音，拼接为 `短片素材/<项目名>/audio/narr<NN>.mp3`
+4. 用 ffprobe 检查每段旁白的时长，记录备用
 
 ```python
-import asyncio, edge_tts
+import asyncio, subprocess, edge_tts
 
-async def generate_narration_ssml(ssml_text, output_path):
-    """用 SSML 生成带情感层次的旁白"""
-    communicate = edge_tts.Communicate(ssml_text, voice="zh-CN-YunxiNeural")
-    await communicate.save(output_path)
+STYLE = {  # 情感 → (rate, pitch, volume)
+    "叙事": ("-15%", "-3Hz", "+0%"),
+    "递进": ("-20%", "-5Hz", "-5%"),
+    "关键": ("-35%", "-8Hz", "-20%"),
+    "转折": ("-10%", "+0Hz", "+0%"),
+}
 
-# 示例 SSML
-ssml = '''
-<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="zh-CN">
-    <voice name="zh-CN-YunxiNeural">
-        <prosody rate="-15%" pitch="-3%">
-            她来看过他。
-        </prosody>
-        <break time="600ms"/>
-        <prosody rate="-20%">
-            她说了两个字：
-        </prosody>
-        <break time="400ms"/>
-        <prosody rate="-35%" volume="soft" pitch="-8%">
-            谢谢。
-        </prosody>
-    </voice>
-</speak>
-'''
+async def tts_sentence(text, style, out, voice="zh-CN-YunxiNeural"):
+    rate, pitch, volume = STYLE[style]
+    await edge_tts.Communicate(text, voice, rate=rate, pitch=pitch, volume=volume).save(out)
 
-asyncio.run(generate_narration_ssml(ssml, "narr02.mp3"))
+def silence(ms, out):
+    subprocess.run(["ffmpeg", "-y", "-f", "lavfi", "-i", "anullsrc=r=24000:cl=mono",
+                    "-t", f"{ms/1000:.3f}", "-c:a", "libmp3lame", "-b:a", "48k", out], check=True)
+
+# segments 示例：[("她来看过他。","叙事",600), ("她说了两个字：","递进",400), ("谢谢。","关键",0)]
+async def build_narration(segments, out, workdir):
+    parts = []
+    for i, (text, style, pause_ms) in enumerate(segments):
+        p = f"{workdir}/s{i:02d}.mp3"; await tts_sentence(text, style, p); parts.append(p)
+        if pause_ms:
+            s = f"{workdir}/p{i:02d}.mp3"; silence(pause_ms, s); parts.append(s)
+    with open(f"{workdir}/list.txt", "w", encoding="utf-8") as f:
+        f.writelines(f"file '{x}'\n" for x in parts)
+    # 重新编码拼接，避免不同片段参数不一致
+    subprocess.run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", f"{workdir}/list.txt",
+                    "-ar", "24000", "-ac", "1", "-c:a", "libmp3lame", "-b:a", "64k", out], check=True)
 ```
-
-**SSML 情感模板**：
-- 叙事段：`<prosody rate="-15%" pitch="-3%">` — 平稳，微沉
-- 递进段：`<prosody rate="-20%" pitch="-5%">` — 渐慢渐沉
-- 关键句：`<prosody rate="-35%" volume="soft" pitch="-8%">` — 极慢极轻
-- 转折句：前加 `<break time="800ms"/>`，句首 `<prosody rate="-10%">` 再回落
-- 句间停顿：`<break time="400ms"/>` 到 `<break time="1000ms"/>`，越重要的停顿越长
 
 ---
 
@@ -360,7 +343,7 @@ asyncio.run(generate_narration_ssml(ssml, "narr02.mp3"))
 **每个片段的处理**：
 1. 获取原始视频的分辨率和时长（ffprobe）
 2. 计算目标时长 = max(脚本镜头时长, 旁白时长 + 0.5s)
-3. 计算慢放系数 = 目标时长 / 原始时长
+3. 计算慢放系数 = 目标时长 / 原始时长。Step 3 已按镜头时长生成，系数通常接近 1；只在旁白比画面长时小幅慢放（不超过 1.3 倍，超过就重新生成更长的片段，避免画面发涩）
 
 FFmpeg filter chain：
 ```
@@ -507,10 +490,14 @@ ffmpeg -y
 
 | 错误场景 | 处理方式 |
 |---------|---------|
-| Seedream API 返回 400（尺寸不够） | 自动调整为 2048x2048 |
-| Seedance SetLimitExceeded | 按降级梯队切换：2.0 → 1.5 Pro → 1.0 Pro → 1.0 Pro Fast，全部受限则提示用户 |
-| Seedance 任务超时（>10min） | 重试一次，仍失败则跳过该镜头（用图片静帧替代） |
-| edge-tts 未安装 | 自动 `pip install edge-tts` |
+| Seedream API 返回 400（尺寸参数） | 改用档位 `size: "2K"`，不要与像素值混用 |
+| 模型不存在 / 已下线 | 查火山方舟《模型下线公告》，换成建议迁移模型 |
+| Seedance 2.0 未开通 | 提示用户账户余额需 > 200 元或购买套餐；先降级到 1.5 Pro 继续 |
+| Seedance SetLimitExceeded / 429 | 按降级梯队切换：2.0 → 2.0 Fast → 2.0 Mini → 1.5 Pro，全部受限则提示用户 |
+| Seedance 任务超时（>15min） | 重试一次，仍失败则跳过该镜头（用图片静帧替代） |
+| 生成视频自带音轨 | 检查是否漏传 `generate_audio: false`；组装时只取视频流 `-map 0:v` |
+| edge-tts 未安装 | 自动 `pip install -U edge-tts` |
+| edge-tts 报 SSML 相关错误 | 说明还在用旧的 SSML 写法，改为 Step 4 的分句生成 |
 | FFmpeg subtitles filter 路径错误 | 使用简单路径临时文件策略 |
 | FFmpeg 编码错误（cp1252） | subprocess 使用列表参数，不使用 shell=True |
 | BGM 下载失败 | 输出无 BGM 版本，提供 SRT 字幕文件供用户自行配乐 |
@@ -528,7 +515,7 @@ ffmpeg -y
 ### 旁白
 - 不煽情，不抒情，像在陈述事实——但事实本身就是最重的情感
 - 每句之间有明显停顿
-- 关键句语速更慢、音量略降（通过分段生成自然实现）
+- 关键句语速更慢、音量略降（通过分句生成、每句单独设参数实现）
 
 ### 字幕
 - 简洁有力的短句
@@ -560,6 +547,7 @@ ffmpeg -y
 - [ ] 脚本是否忠实于原文核心情感和主题？
 - [ ] 每个镜头是否有清晰的画面描述和英文 AI 提示词？
 - [ ] 所有图片/视频素材是否成功生成？失败的是否有降级方案？
+- [ ] 视频片段是否都没有自带音轨（generate_audio=false）？
 - [ ] 旁白时长是否与视频时长匹配（视频时长 ≥ 旁白时长 + 0.5s）？
 - [ ] 所有视频片段是否统一为 1920×1080, 24fps？
 - [ ] SRT 字幕时间线是否与画面正确对齐？

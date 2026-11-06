@@ -67,9 +67,9 @@ AI 科幻创作与短片制作引擎，基于 [Claude Code](https://claude.ai/cl
 
 ## 短片制作技术栈
 
-- **图片生成**: 火山方舟 Seedream 5.0
-- **视频生成**: 火山方舟 Seedance（2.0 → 1.5 Pro → 1.0 Pro 逐级降级）
-- **TTS 旁白**: edge-tts + SSML 情感控制
+- **图片生成**: 火山方舟 Seedream 5.0 pro
+- **视频生成**: 火山方舟 Seedance（2.0 → 2.0 Fast → 2.0 Mini → 1.5 Pro 逐级降级）
+- **TTS 旁白**: edge-tts 分句情感控制
 - **视频组装**: FFmpeg
 - **BGM**: Incompetech 免费曲库（CC BY 4.0）
 
